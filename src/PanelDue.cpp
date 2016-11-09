@@ -181,6 +181,7 @@ enum ReceivedDataEvent
 	rcvBeepLength,
 	rcvFanPercent,
 	rcvFilename,
+	rcvFirmwareName,
 	rcvFraction,
 	rcvGeneratedBy,
 	rcvGeometry,
@@ -198,6 +199,12 @@ enum ReceivedDataEvent
 	rcvVolumes
 };
 
+enum Firmware {
+        generic = 0,
+	repRapFirmware,
+        smoothieware,
+};
+
 struct ReceiveDataTableEntry
 {
 	ReceivedDataEvent rde;
@@ -207,6 +214,8 @@ struct ReceiveDataTableEntry
 static Event eventToConfirm = evNull;
 
 int heaterStatus[maxHeaters];
+
+Firmware firmware;
 
 RequestTimer fileInfoTimer(FileInfoRequestTimeout, "M36");
 RequestTimer machineConfigTimer(MachineConfigRequestTimeout, "M408 S1");
@@ -595,8 +604,21 @@ void ProcessTouch(ButtonPress bp)
 						}
 						else
 						{
-							SerialIo::SendString("G10 P");
-							SerialIo::SendInt(heater - 1);
+						        switch (firmware)
+						        {  
+							case Firmware.repRapFirmware:
+							  SerialIo::SendString("G10 P");
+							  SerialIo::SendInt(heater - 1);
+							  break;
+							  
+							case Firmware.Smoothieware:
+							case Firmware.Generic:
+							default:
+							  SerialIo::SendChar('T');
+							  SerialIo::SendInt(heater - 1);
+							  SerialIo::SendChar('\n');
+							  SerialIo::SendString("M104");
+							}
 							SerialIo::SendString(" S");
 							SerialIo::SendInt(val);
 							SerialIo::SendChar('\n');
@@ -1386,7 +1408,8 @@ const ReceiveDataTableEntry nonArrayDataTable[] =
 	{ rcvBeepLength,	"beep_length" },
 	{ rcvDir,			"dir" },
 	{ rcvErr,			"err" },
-	{ rcvFilename,		"fileName" },
+	{ rcvFilename,	        "fileName" },
+	{ rcvFirmwareName,	"firmwareName" },
 	{ rcvFraction,		"fraction_printed" },
 	{ rcvGeneratedBy,	"generatedBy" },
 	{ rcvGeometry,		"geometry" },
@@ -1731,6 +1754,29 @@ void ProcessReceivedValue(const char id[], const char data[], int index)
 				for (size_t i = 0; i < MAX_AXES; ++i)
 				{
 					mgr.Show(homeButtons[i], !isDelta && i < numAxes);
+				}
+			}
+			break;
+		
+		case rcvFirmwareName:
+			if (status != PrinterStatus::configuring && status != PrinterStatus::connecting)
+			{
+				if (strcasecmp(data, "Smoothieware") == 0)
+				{
+				        firmwware = Firmware.smoothieware;
+				}
+				else if (strcasecmp(data, "RepRapFirmware") == 0)
+				{
+				        firmwware = Firmware.repRapFirmware;
+				} 
+				else
+				{
+				         firmwware = Firmware.generic;
+				}
+
+				if (gotMachineName)
+				{
+					machineConfigTimer.Stop();
 				}
 			}
 			break;
