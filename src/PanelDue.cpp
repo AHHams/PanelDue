@@ -40,11 +40,10 @@
 #include "MessageLog.hpp"
 
 #ifdef OEM
-// Display the splash screen
 # if DISPLAY_X == 800
-#  include "SplashScreens/OemSplashScreen_800_480.hpp"
+#  include "OemSplashScreen_800_480.hpp"
 # else
-#  include "SplashScreens/OemSplashScreen_480_272.hpp"
+#  include "OemSplashScreen_480_272.hpp"
 # endif
 #endif
 
@@ -1968,7 +1967,7 @@ int main(void)
 	
 #ifdef OEM
 	// Display the splash screen
-	lcd.drawCompressedBitmap(0, 0, 800, 480, splashScreenImage);
+	lcd.drawCompressedBitmap(0, 0, DISPLAY_X, DISPLAY_Y, splashScreenImage);
 	const uint32_t now = SystemTick::GetTickCount();
 	while (SystemTick::GetTickCount() - now < 5000) { }		// hold it there for 5 seconds
 #endif
